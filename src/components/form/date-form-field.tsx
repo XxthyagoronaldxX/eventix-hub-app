@@ -75,7 +75,7 @@ export function DateFormField({
               aria-invalid={error ? true : undefined}
               aria-required={required}
               className={cn(
-                "flex-1 justify-start font-normal",
+                "min-w-0 flex-1 justify-start font-normal",
                 compact ? "h-8" : "h-9",
                 !date && "text-muted-foreground",
               )}
@@ -117,7 +117,7 @@ export function DateFormField({
           </PopoverContent>
         </Popover>
         {withTime && (
-          <div className="relative w-28">
+          <div className="relative w-28 shrink-0">
             <Clock className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="time"

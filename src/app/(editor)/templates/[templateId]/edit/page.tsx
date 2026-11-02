@@ -23,6 +23,7 @@ export default async function TemplateEditorPage({ params, searchParams }: PageP
       <TemplateBuilder
         key={`${current.id}-${current.version}-${current.imageAssetId}`}
         templateId={template.id}
+        templateKind={template.kind}
         initialName={template.name}
         imageAssetId={current.imageAssetId}
         imageUrl={`/api/assets/${current.imageAssetId}`}

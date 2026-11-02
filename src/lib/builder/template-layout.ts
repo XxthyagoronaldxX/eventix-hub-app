@@ -108,4 +108,9 @@ export const DEFAULT_TEMPLATE_LAYOUT: TemplateLayout = {
   fields: [DEFAULT_TICKET_CODE_FIELD],
 };
 
+export const DEFAULT_TICKET_TEMPLATE_LAYOUT: TemplateLayout = {
+  matrices: [],
+  fields: [DEFAULT_TICKET_CODE_FIELD, DEFAULT_QR_CODE_FIELD],
+};
+
 export const DEFAULT_NUMBER_RULE: NumberRuleConfig = { kind: "bingo75" };

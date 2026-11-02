@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Grid3x3, Search } from "lucide-react";
+import { Check, Grid3x3, Search, Ticket } from "lucide-react";
 import { type KeyboardEvent, useState } from "react";
 import { Input } from "@/components/ui/input";
 import type { TemplateSummary } from "@/lib/api/types";
@@ -24,7 +24,9 @@ export function TemplatePicker({ templates, name, defaultTemplateId, lastUsedTem
   const [selectedId, setSelectedId] = useState(defaultTemplateId ?? templates[0]?.id ?? "");
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLocaleLowerCase("pt-BR");
-  const visibleTemplates = normalizedQuery ? templates.filter((template) => template.name.toLocaleLowerCase("pt-BR").includes(normalizedQuery)) : templates;
+  const visibleTemplates = normalizedQuery
+    ? templates.filter((template) => template.name.toLocaleLowerCase("pt-BR").includes(normalizedQuery))
+    : templates;
 
   function moveSelection(event: KeyboardEvent<HTMLDivElement>) {
     const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
@@ -70,7 +72,9 @@ export function TemplatePicker({ templates, name, defaultTemplateId, lastUsedTem
               onClick={() => setSelectedId(template.id)}
               className={cn(
                 "group relative flex h-full flex-col overflow-hidden rounded-xl border bg-card text-left transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-                isSelected ? "border-primary ring-2 ring-primary/40" : "hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md",
+                isSelected
+                  ? "border-primary ring-2 ring-primary/40"
+                  : "hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md",
               )}
             >
               <span className="relative flex aspect-4/3 w-full shrink-0 items-center justify-center bg-[repeating-conic-gradient(var(--muted)_0_25%,transparent_0_50%)] bg-[length:16px_16px] p-2">
@@ -87,20 +91,40 @@ export function TemplatePicker({ templates, name, defaultTemplateId, lastUsedTem
                   </span>
                 )}
                 {template.id === lastUsedTemplateId && (
-                  <span className="absolute top-2 left-2 rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-semibold shadow">Último usado</span>
+                  <span className="absolute top-2 left-2 rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-semibold shadow">
+                    Último usado
+                  </span>
                 )}
               </span>
               <span className="mt-auto grid gap-0.5 border-t p-2.5">
-                <span className={cn("truncate text-sm font-medium", isSelected && "text-primary")}>{template.name}</span>
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Grid3x3 className="size-3" aria-hidden="true" />v{template.latestVersion} · {matrixLabel(template.matrixCount)}
+                <span className={cn("truncate text-sm font-medium", isSelected && "text-primary")}>
+                  {template.name}
                 </span>
-                <span className="truncate text-[11px] text-muted-foreground">{NUMBER_RULE_LABELS[template.numberRuleKind]}</span>
+                {template.kind === "bingo" ? (
+                  <>
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Grid3x3 className="size-3" aria-hidden="true" />v{template.latestVersion} ·{" "}
+                      {matrixLabel(template.matrixCount)}
+                    </span>
+                    <span className="truncate text-[11px] text-muted-foreground">
+                      {NUMBER_RULE_LABELS[template.numberRuleKind]}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Ticket className="size-3" aria-hidden="true" />v{template.latestVersion} · Ticket
+                    </span>
+                    <span className="truncate text-[11px] text-muted-foreground">Código e QR Code</span>
+                  </>
+                )}
               </span>
             </button>
           );
         })}
-        {visibleTemplates.length === 0 && <p className="col-span-full py-6 text-center text-sm text-muted-foreground">Nenhum template com esse nome.</p>}
+        {visibleTemplates.length === 0 && (
+          <p className="col-span-full py-6 text-center text-sm text-muted-foreground">Nenhum template com esse nome.</p>
+        )}
       </div>
     </div>
   );

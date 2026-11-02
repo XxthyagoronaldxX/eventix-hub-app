@@ -32,8 +32,8 @@ const EVENT_STATUS_OPTIONS: SelectOption[] = [
 
 export function EventFields({ event }: { event?: OrganizationEvent }) {
   return (
-    <>
-      <div className={cn("grid gap-5", event && "sm:grid-cols-[minmax(0,1fr)_220px]")}>
+    <div className="@container grid gap-5">
+      <div className={cn("grid gap-5", event && "@lg:grid-cols-[minmax(0,1fr)_220px]")}>
         <TextFormField
           label="Nome do evento"
           id="event-name"
@@ -53,7 +53,7 @@ export function EventFields({ event }: { event?: OrganizationEvent }) {
           />
         )}
       </div>
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_220px]">
+      <div className="grid gap-5 @lg:grid-cols-2 @3xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_200px]">
         <DateFormField
           withTime
           label="Data e hora"
@@ -69,6 +69,7 @@ export function EventFields({ event }: { event?: OrganizationEvent }) {
           defaultValue={event?.location}
           placeholder="Salão paroquial"
           maxLength={200}
+          fieldClassName="@lg:order-last @lg:col-span-2 @3xl:order-none @3xl:col-span-1"
         />
         <NumberFormField
           label="Valor do ticket"
@@ -91,6 +92,6 @@ export function EventFields({ event }: { event?: OrganizationEvent }) {
         maxLength={2000}
         rows={4}
       />
-    </>
+    </div>
   );
 }

@@ -5,6 +5,7 @@ import { CalendarPlus, Loader2, Plus } from "lucide-react";
 import { type FormEvent, startTransition, useActionState, useState, useEffect } from "react";
 import { createEvent, type CreateEventState } from "@/actions/event-actions";
 import { EventFields } from "@/components/events/event-fields";
+import { EventKindPicker } from "@/components/events/event-kind-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -40,7 +41,7 @@ export function NewEventDialog({ defaultOpen = false }: { defaultOpen?: boolean 
           <Plus /> Novo evento
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary/15 text-primary">
@@ -48,11 +49,14 @@ export function NewEventDialog({ defaultOpen = false }: { defaultOpen?: boolean 
             </span>
             Novo evento
           </DialogTitle>
-          <DialogDescription>Depois de criar, você escolhe o template da cartela e gera os tickets.</DialogDescription>
+          <DialogDescription>
+            Escolha o tipo do evento. Depois de criar, você escolhe o template e gera os tickets.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={submitKeepingValues} className="grid gap-5">
+          <EventKindPicker />
           <EventFields />
-          <DialogFooter>
+          <DialogFooter className="sticky bottom-0 z-10 bg-popover">
             <DialogClose asChild>
               <Button type="button" variant="outline" disabled={isPending}>
                 Cancelar

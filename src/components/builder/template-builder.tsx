@@ -50,6 +50,7 @@ import {
   type TemplateLayout,
   type TicketCodeField,
 } from "@/lib/builder/template-layout";
+import type { TemplateKind } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 import { BuilderCanvas } from "./builder-canvas";
 import {
@@ -65,6 +66,7 @@ import { BoxInputs, PercentInput, TextStyleInputs } from "./builder-inputs";
 
 interface TemplateBuilderProps {
   templateId: string;
+  templateKind: TemplateKind;
   initialName: string;
   imageAssetId: string;
   imageUrl: string;
@@ -130,6 +132,10 @@ function duplicateMatrix(matrix: MatrixLayout): MatrixLayout {
   return { ...matrix, ...shiftedBox };
 }
 
+function initialElementFor(templateKind: TemplateKind, layout: TemplateLayout): BuilderElementKey {
+  return templateKind === "bingo" ? matrixElementKey(0) : (layout.fields[0]?.type ?? "ticketCode");
+}
+
 function elementIcon(elementKey: BuilderElementKey) {
   if (matrixIndexOf(elementKey) !== null) return Grid3x3;
   return elementKey === "qrCode" ? QrCode : Hash;
@@ -137,6 +143,7 @@ function elementIcon(elementKey: BuilderElementKey) {
 
 export function TemplateBuilder({
   templateId,
+  templateKind,
   initialName,
   imageAssetId,
   imageUrl,
@@ -151,7 +158,9 @@ export function TemplateBuilder({
   const [name, setName] = useState(initialName);
   const [layout, setLayout] = useState(initialLayout);
   const [numberRule, setNumberRule] = useState(initialNumberRule);
-  const [selectedElement, setSelectedElement] = useState<BuilderElementKey>(matrixElementKey(0));
+  const [selectedElement, setSelectedElement] = useState<BuilderElementKey>(() =>
+    initialElementFor(templateKind, initialLayout),
+  );
   const [editingMatrixIndex, setEditingMatrixIndex] = useState(0);
   const [sampleSeed, setSampleSeed] = useState(1);
   const [zoomPercent, setZoomPercent] = useState(100);
@@ -176,8 +185,9 @@ export function TemplateBuilder({
 
   const shapePreset = MATRIX_SHAPE_BY_RULE[numberRule.kind];
   const sampleNumbers = generateSampleTicket(layout, numberRule, sampleSeed);
-  const layoutProblems = findLayoutProblems(layout, numberRule);
-  const design: TemplateDesign = { imageAssetId, layout, numberRule };
+  const isBingo = templateKind === "bingo";
+  const layoutProblems = findLayoutProblems(layout, numberRule, templateKind);
+  const design: TemplateDesign = { kind: templateKind, imageAssetId, layout, numberRule };
   const selectedBox = findElementBox(layout, selectedElement);
   const editingMatrix = layout.matrices[editingMatrixIndex] ?? layout.matrices[0];
   const ticketCodeField = layout.fields.find((field): field is TicketCodeField => field.type === "ticketCode");
@@ -240,7 +250,9 @@ export function TemplateBuilder({
         ? [...currentLayout.fields.filter((field) => field.type !== fieldType), DEFAULT_FIELD_BY_TYPE[fieldType]]
         : currentLayout.fields.filter((field) => field.type !== fieldType),
     }));
-    selectElement(isEnabled ? fieldType : matrixElementKey(editingMatrixIndex));
+    const remainingField = layout.fields.find((field) => field.type !== fieldType);
+    const fallbackElement = isBingo ? matrixElementKey(editingMatrixIndex) : (remainingField?.type ?? fieldType);
+    selectElement(isEnabled ? fieldType : fallbackElement);
   }
 
   function updateTicketCodeFont(font: TicketCodeField["font"]) {
@@ -312,14 +324,16 @@ export function TemplateBuilder({
             />
             <span className="w-10 tabular-nums">{zoomPercent}%</span>
           </label>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setSampleSeed((seed) => seed + 1)}
-            title="Sortear novos números de exemplo"
-          >
-            <Dices /> <span className="hidden sm:inline">Nova amostra</span>
-          </Button>
+          {isBingo && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setSampleSeed((seed) => seed + 1)}
+              title="Sortear novos números de exemplo"
+            >
+              <Dices /> <span className="hidden sm:inline">Nova amostra</span>
+            </Button>
+          )}
           <Button type="button" variant="outline" onClick={loadServerPreview} disabled={isLoadingPreview}>
             {isLoadingPreview ? <Loader2 className="animate-spin" /> : <Eye />}
             <span className="hidden sm:inline">Prévia real</span>
@@ -399,157 +413,166 @@ export function TemplateBuilder({
             </div>
           )}
 
-          <PanelSection title="Regra dos números">
-            <SelectFormField
-              id="number-rule-kind"
-              label="Tipo (vale para todas as matrizes)"
-              compact
-              options={NUMBER_RULE_OPTIONS}
-              value={numberRule.kind}
-              onValueChange={(kind) => changeNumberRuleKind(kind as NumberRuleKind)}
-            />
-            {numberRule.kind === "range" && (
-              <div className="grid grid-cols-2 gap-3">
-                <NumberFormField
-                  id="range-minimum"
-                  label="Mínimo"
+          {isBingo && (
+            <>
+              <PanelSection title="Regra dos números">
+                <SelectFormField
+                  id="number-rule-kind"
+                  label="Tipo (vale para todas as matrizes)"
                   compact
-                  step={1}
-                  min={0}
-                  value={numberRule.min}
-                  onValueChange={(min) => setNumberRule({ ...numberRule, min: Math.round(min) })}
+                  options={NUMBER_RULE_OPTIONS}
+                  value={numberRule.kind}
+                  onValueChange={(kind) => changeNumberRuleKind(kind as NumberRuleKind)}
                 />
-                <NumberFormField
-                  id="range-maximum"
-                  label="Máximo"
-                  compact
-                  step={1}
-                  min={1}
-                  value={numberRule.max}
-                  onValueChange={(max) => setNumberRule({ ...numberRule, max: Math.round(max) })}
-                />
-              </div>
-            )}
-          </PanelSection>
+                {numberRule.kind === "range" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <NumberFormField
+                      id="range-minimum"
+                      label="Mínimo"
+                      compact
+                      step={1}
+                      min={0}
+                      value={numberRule.min}
+                      onValueChange={(min) => setNumberRule({ ...numberRule, min: Math.round(min) })}
+                    />
+                    <NumberFormField
+                      id="range-maximum"
+                      label="Máximo"
+                      compact
+                      step={1}
+                      min={1}
+                      value={numberRule.max}
+                      onValueChange={(max) => setNumberRule({ ...numberRule, max: Math.round(max) })}
+                    />
+                  </div>
+                )}
+              </PanelSection>
 
-          <PanelSection
-            title={`Matrizes (${layout.matrices.length})`}
-            action={
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addMatrix}
-                disabled={!canAddMatrix}
-                title="Duplica a matriz em edição"
+              <PanelSection
+                title={`Matrizes (${layout.matrices.length})`}
+                action={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addMatrix}
+                    disabled={!canAddMatrix}
+                    title="Duplica a matriz em edição"
+                  >
+                    <Plus /> Adicionar
+                  </Button>
+                }
               >
-                <Plus /> Adicionar
-              </Button>
-            }
-          >
-            <p className="text-xs text-muted-foreground">
-              Cada matriz é um bingo independente na mesma cartela, com números próprios.
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {layout.matrices.map((_, matrixIndex) => (
-                <button
-                  key={matrixElementKey(matrixIndex)}
-                  type="button"
-                  onClick={() => selectElement(matrixElementKey(matrixIndex))}
-                  className={cn(
-                    "flex size-8 items-center justify-center rounded-md border text-sm font-medium transition-colors hover:bg-muted",
-                    matrixIndex === editingMatrixIndex &&
-                      "border-primary bg-primary text-primary-foreground hover:bg-primary",
-                  )}
-                  aria-label={matrixLabel(matrixIndex)}
-                  aria-pressed={matrixIndex === editingMatrixIndex}
-                >
-                  {matrixIndex + 1}
-                </button>
-              ))}
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">{matrixLabel(editingMatrixIndex)}</p>
-              <div className="flex gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={addMatrix}
-                  disabled={!canAddMatrix}
-                  title="Duplicar matriz"
-                  aria-label="Duplicar matriz"
-                >
-                  <Copy />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={removeEditingMatrix}
-                  disabled={layout.matrices.length <= 1}
-                  title="Remover matriz"
-                  aria-label="Remover matriz"
-                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <Trash2 />
-                </Button>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <NumberFormField
-                id="matrix-rows"
-                label="Linhas"
-                compact
-                step={1}
-                min={1}
-                max={20}
-                disabled={Boolean(shapePreset)}
-                value={editingMatrix.rows}
-                onValueChange={(rows) => updateEditingMatrix({ rows: Math.round(rows) })}
-              />
-              <NumberFormField
-                id="matrix-cols"
-                label="Colunas"
-                compact
-                step={1}
-                min={1}
-                max={20}
-                disabled={Boolean(shapePreset)}
-                value={editingMatrix.cols}
-                onValueChange={(cols) => updateEditingMatrix({ cols: Math.round(cols) })}
-              />
-              <PercentInput
-                id="matrix-gap-x"
-                label="Espaço horizontal"
-                value={editingMatrix.gapX}
-                max={20}
-                onChange={(gapX) => updateEditingMatrix({ gapX })}
-              />
-              <PercentInput
-                id="matrix-gap-y"
-                label="Espaço vertical"
-                value={editingMatrix.gapY}
-                max={20}
-                onChange={(gapY) => updateEditingMatrix({ gapY })}
-              />
-            </div>
-            <SwitchFormField
-              label="Célula central livre"
-              checked={editingMatrix.freeCenter}
-              disabled={numberRule.kind === "bingo90"}
-              onCheckedChange={(freeCenter) => updateEditingMatrix({ freeCenter })}
-            />
-            <p className="text-xs font-medium text-muted-foreground">Fonte dos números</p>
-            <TextStyleInputs
-              idPrefix="matrix"
-              style={editingMatrix.font}
-              onChange={(font) => updateEditingMatrix({ font })}
-            />
-          </PanelSection>
+                <p className="text-xs text-muted-foreground">
+                  Cada matriz é um bingo independente na mesma cartela, com números próprios.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {layout.matrices.map((_, matrixIndex) => (
+                    <button
+                      key={matrixElementKey(matrixIndex)}
+                      type="button"
+                      onClick={() => selectElement(matrixElementKey(matrixIndex))}
+                      className={cn(
+                        "flex size-8 items-center justify-center rounded-md border text-sm font-medium transition-colors hover:bg-muted",
+                        matrixIndex === editingMatrixIndex &&
+                          "border-primary bg-primary text-primary-foreground hover:bg-primary",
+                      )}
+                      aria-label={matrixLabel(matrixIndex)}
+                      aria-pressed={matrixIndex === editingMatrixIndex}
+                    >
+                      {matrixIndex + 1}
+                    </button>
+                  ))}
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">{matrixLabel(editingMatrixIndex)}</p>
+                  <div className="flex gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={addMatrix}
+                      disabled={!canAddMatrix}
+                      title="Duplicar matriz"
+                      aria-label="Duplicar matriz"
+                    >
+                      <Copy />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={removeEditingMatrix}
+                      disabled={layout.matrices.length <= 1}
+                      title="Remover matriz"
+                      aria-label="Remover matriz"
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <NumberFormField
+                    id="matrix-rows"
+                    label="Linhas"
+                    compact
+                    step={1}
+                    min={1}
+                    max={20}
+                    disabled={Boolean(shapePreset)}
+                    value={editingMatrix.rows}
+                    onValueChange={(rows) => updateEditingMatrix({ rows: Math.round(rows) })}
+                  />
+                  <NumberFormField
+                    id="matrix-cols"
+                    label="Colunas"
+                    compact
+                    step={1}
+                    min={1}
+                    max={20}
+                    disabled={Boolean(shapePreset)}
+                    value={editingMatrix.cols}
+                    onValueChange={(cols) => updateEditingMatrix({ cols: Math.round(cols) })}
+                  />
+                  <PercentInput
+                    id="matrix-gap-x"
+                    label="Espaço horizontal"
+                    value={editingMatrix.gapX}
+                    max={20}
+                    onChange={(gapX) => updateEditingMatrix({ gapX })}
+                  />
+                  <PercentInput
+                    id="matrix-gap-y"
+                    label="Espaço vertical"
+                    value={editingMatrix.gapY}
+                    max={20}
+                    onChange={(gapY) => updateEditingMatrix({ gapY })}
+                  />
+                </div>
+                <SwitchFormField
+                  label="Célula central livre"
+                  checked={editingMatrix.freeCenter}
+                  disabled={numberRule.kind === "bingo90"}
+                  onCheckedChange={(freeCenter) => updateEditingMatrix({ freeCenter })}
+                />
+                <p className="text-xs font-medium text-muted-foreground">Fonte dos números</p>
+                <TextStyleInputs
+                  idPrefix="matrix"
+                  style={editingMatrix.font}
+                  onChange={(font) => updateEditingMatrix({ font })}
+                />
+              </PanelSection>
+            </>
+          )}
 
-          <PanelSection title="Campos extras">
+          <PanelSection title={isBingo ? "Campos extras" : "Campos do ticket"}>
+            {!isBingo && (
+              <p className="text-xs text-muted-foreground">
+                Tickets de rifa e ingresso não têm números. Mostre o código, o QR Code ou os dois.
+              </p>
+            )}
             <SwitchFormField
               label="Código do ticket"
               checked={Boolean(ticketCodeField)}
@@ -577,7 +600,7 @@ export function TemplateBuilder({
           )}
 
           {canEdit && (
-            <PanelSection title="Imagem da cartela">
+            <PanelSection title={isBingo ? "Imagem da cartela" : "Imagem do ticket"}>
               <p className="text-xs text-muted-foreground">
                 As posições são mantidas, porque são relativas ao tamanho da imagem.
               </p>

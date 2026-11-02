@@ -1,5 +1,6 @@
 import { Banknote, CreditCard, ExternalLink, QrCode, UserRound, Wallet } from "lucide-react";
 import Link from "next/link";
+import { eventRoutes } from "@/lib/event-routes";
 import type { ReactNode } from "react";
 import { changeTicketPayment, voidTicket } from "@/actions/ticket-actions";
 import { ConfirmAction } from "@/components/confirm-action";
@@ -50,6 +51,7 @@ interface TicketTableProps {
   canChangePayment: boolean;
   paymentSettingsByEvent: Map<string, EventPaymentSettings>;
   returnPath: string;
+  showNumbers?: boolean;
 }
 
 export function TicketTable({
@@ -59,13 +61,14 @@ export function TicketTable({
   canChangePayment,
   paymentSettingsByEvent,
   returnPath,
+  showNumbers = true,
 }: TicketTableProps) {
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead>Código</TableHead>
-          <TableHead>Números</TableHead>
+          {showNumbers && <TableHead>Números</TableHead>}
           <TableHead>Status</TableHead>
           <TableHead>Pagamento</TableHead>
           <TableHead className="text-right">Ações</TableHead>
@@ -81,9 +84,11 @@ export function TicketTable({
               )}
               <div className="text-xs text-muted-foreground">{formatDateTime(ticket.createdAt)}</div>
             </TableCell>
-            <TableCell>
-              <NumberGrid cards={ticket.numbers} />
-            </TableCell>
+            {showNumbers && (
+              <TableCell>
+                <NumberGrid cards={ticket.numbers} />
+              </TableCell>
+            )}
             <TableCell>
               <StatusBadge tone={ticket.status === "active" ? "success" : "danger"}>
                 {TICKET_STATUS_LABELS[ticket.status]}
@@ -125,7 +130,7 @@ export function TicketTable({
                   !ticket.paidAt &&
                   requiresBuyerOf(paymentSettingsByEvent, ticket.eventId) && (
                     <Button size="sm" variant="outline" asChild>
-                      <Link href={`/payments/${ticket.eventId}`}>
+                      <Link href={eventRoutes.payments(ticket.eventId)}>
                         <Wallet /> Receber no caixa
                       </Link>
                     </Button>

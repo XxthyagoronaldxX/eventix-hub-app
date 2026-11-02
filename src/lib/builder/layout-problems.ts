@@ -1,3 +1,4 @@
+import type { TemplateKind } from "@/lib/api/types";
 import { z } from "@/lib/validation/zod";
 import {
   FONT_FAMILIES,
@@ -117,7 +118,6 @@ export const templateDesignSchema = z
     layout: z.object({
       matrices: z
         .array(matrixSchema)
-        .min(1, { error: "Adicione pelo menos uma matriz de números." })
         .max(MAXIMUM_MATRICES_PER_TEMPLATE, { error: `Use no máximo ${MAXIMUM_MATRICES_PER_TEMPLATE} matrizes.` }),
       fields: z
         .array(fieldSchema)
@@ -147,7 +147,19 @@ function describeIssue(issue: z.core.$ZodIssue): string {
   return issue.message;
 }
 
-export function findLayoutProblems(layout: TemplateLayout, numberRule: NumberRuleConfig): string[] {
+function findKindProblems(layout: TemplateLayout, kind: TemplateKind): string[] {
+  if (kind === "bingo") {
+    return layout.matrices.length === 0 ? ["Adicione pelo menos uma matriz de números."] : [];
+  }
+  return layout.fields.length === 0 ? ["Adicione o código do ticket ou o QR Code."] : [];
+}
+
+export function findLayoutProblems(
+  layout: TemplateLayout,
+  numberRule: NumberRuleConfig,
+  kind: TemplateKind = "bingo",
+): string[] {
   const result = templateDesignSchema.safeParse({ layout, numberRule });
-  return result.success ? [] : [...new Set(result.error.issues.map(describeIssue))];
+  const designProblems = result.success ? [] : result.error.issues.map(describeIssue);
+  return [...new Set([...findKindProblems(layout, kind), ...designProblems])];
 }

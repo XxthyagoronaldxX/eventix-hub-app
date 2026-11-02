@@ -5,13 +5,11 @@ import { usePathname } from "next/navigation";
 import type { MouseEvent, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-const RELATED_PATH_PREFIXES: Record<string, string[]> = {
-  "/events": ["/events", "/batches"],
-};
-
-function isLinkActive(href: string, currentPath: string): boolean {
-  const prefixes = RELATED_PATH_PREFIXES[href] ?? [href];
-  return prefixes.some((prefix) => currentPath === prefix || currentPath.startsWith(`${prefix}/`));
+function isLinkActive(href: string, currentPath: string, exact: boolean, activePrefixes: string[]): boolean {
+  if (exact) {
+    return currentPath === href;
+  }
+  return [href, ...activePrefixes].some((prefix) => currentPath === prefix || currentPath.startsWith(`${prefix}/`));
 }
 
 function closeEnclosingMobileMenu(event: MouseEvent<HTMLAnchorElement>) {
@@ -22,10 +20,12 @@ interface NavLinkProps {
   href: string;
   label: string;
   icon: ReactNode;
+  exact?: boolean;
+  activePrefixes?: string[];
 }
 
-export function NavLink({ href, label, icon }: NavLinkProps) {
-  const isActive = isLinkActive(href, usePathname());
+export function NavLink({ href, label, icon, exact = false, activePrefixes = [] }: NavLinkProps) {
+  const isActive = isLinkActive(href, usePathname(), exact, activePrefixes);
   return (
     <Link
       href={href}
