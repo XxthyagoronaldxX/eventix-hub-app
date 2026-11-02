@@ -113,3 +113,22 @@ export const requestExportSchema = z.object({
 });
 
 export const templateNameSchema = requiredTextSchema("o nome do template", 120);
+
+export const NO_ORGANIZATION = "none";
+
+export const createPlatformUserSchema = z
+  .object({
+    name: requiredTextSchema("o nome do usuário", 120),
+    email: emailSchema,
+    organizationId: objectIdSchema.or(z.literal(NO_ORGANIZATION)),
+    role: organizationRoleSchema.default("member"),
+    passwordMode: z.enum(["email", "manual"]),
+    password: z.string().optional(),
+  })
+  .superRefine((values, context) => {
+    if (values.passwordMode !== "manual") return;
+    const password = strongPasswordSchema.safeParse(values.password ?? "");
+    if (!password.success) {
+      context.addIssue({ code: "custom", message: password.error.issues[0].message, path: ["password"] });
+    }
+  });

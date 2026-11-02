@@ -2,13 +2,19 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { buildQueryHref } from "@/components/pagination";
 import { apiRequest, attempt } from "@/lib/api/api-client";
-import type { Invitation, Organization } from "@/lib/api/types";
+import type { CreatedPlatformUser, Invitation, Organization } from "@/lib/api/types";
 import { withFlash } from "@/lib/flash";
 import { readText, safeInternalPath } from "@/lib/form-data";
 import { writeActiveOrganizationCookie } from "@/lib/session/session-cookies";
 import { objectIdSchema } from "@/lib/validation/common-schemas";
-import { createOrganizationSchema, updateOrganizationSchema } from "@/lib/validation/form-schemas";
+import {
+  createOrganizationSchema,
+  createPlatformUserSchema,
+  NO_ORGANIZATION,
+  updateOrganizationSchema,
+} from "@/lib/validation/form-schemas";
 import { parseFormData, z } from "@/lib/validation/zod";
 import { requireSuperAdmin } from "@/lib/workspace";
 
@@ -101,4 +107,53 @@ export async function changeUserStatus(formData: FormData) {
   );
   const notice = form.data.transition === "block" ? "Usuário bloqueado." : "Usuário desbloqueado.";
   redirect(withFlash(returnPath, result.ok ? { notice } : { error: result.message }));
+}
+
+export interface CreatePlatformUserState {
+  error?: string;
+}
+
+const PLATFORM_USERS_PATH = "/platform/users";
+
+function describeCreatedUser({ user, organizationName, setupEmailSent }: CreatedPlatformUser, passwordMode: string) {
+  const access = organizationName ? ` com acesso a ${organizationName}` : "";
+  if (passwordMode === "manual") {
+    return `Usuário ${user.name} criado${access}. Passe a senha para ele com segurança.`;
+  }
+  return setupEmailSent
+    ? `Usuário ${user.name} criado${access}. Enviamos o link para definir a senha.`
+    : `Usuário ${user.name} criado${access}, mas o e-mail não foi enviado. Peça para usar “Esqueci minha senha”.`;
+}
+
+export async function createPlatformUser(
+  _previousState: CreatePlatformUserState,
+  formData: FormData,
+): Promise<CreatePlatformUserState> {
+  await requireSuperAdmin();
+  const form = parseFormData(createPlatformUserSchema, formData);
+  if (!form.ok) {
+    return { error: form.message };
+  }
+  const { name, email, organizationId, role, passwordMode, password } = form.data;
+  const hasOrganization = organizationId !== NO_ORGANIZATION;
+  const result = await attempt(() =>
+    apiRequest<CreatedPlatformUser>(PLATFORM_USERS_PATH, {
+      method: "POST",
+      body: {
+        name,
+        email,
+        ...(passwordMode === "manual" ? { password } : {}),
+        ...(hasOrganization ? { organizationId, role } : {}),
+      },
+    }),
+  );
+  if (!result.ok) {
+    return { error: result.message };
+  }
+  redirect(
+    withFlash(buildQueryHref(PLATFORM_USERS_PATH, { search: email }), {
+      notice: describeCreatedUser(result.value, passwordMode),
+      link: result.value.setupUrl,
+    }),
+  );
 }

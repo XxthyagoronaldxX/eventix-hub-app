@@ -115,6 +115,13 @@ export interface PlatformUser {
   createdAt: string;
 }
 
+export interface CreatedPlatformUser {
+  user: PlatformUser;
+  organizationName: string | null;
+  setupEmailSent: boolean;
+  setupUrl?: string;
+}
+
 export interface InvitationPreview {
   organizationName: string;
   email: string;

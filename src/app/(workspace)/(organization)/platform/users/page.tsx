@@ -4,6 +4,7 @@ import { changeUserStatus } from "@/actions/platform-actions";
 import { ConfirmAction } from "@/components/confirm-action";
 import { EmptyState } from "@/components/empty-state";
 import { FlashNotices } from "@/components/flash-notices";
+import { NewUserDialog } from "@/components/platform/new-user-dialog";
 import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header";
 import { buildQueryHref, Pagination } from "@/components/pagination";
@@ -12,7 +13,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiRequest } from "@/lib/api/api-client";
-import type { Page, PlatformUser } from "@/lib/api/types";
+import type { Organization, Page, PlatformUser } from "@/lib/api/types";
 import { readFlash, readSearchParam } from "@/lib/flash";
 import { formatDateTime, USER_STATUS_LABELS } from "@/lib/format";
 import { requireSuperAdmin } from "@/lib/workspace";
@@ -26,14 +27,19 @@ export default async function PlatformUsersPage({ searchParams }: PageProps<"/pl
   const query = await searchParams;
   const search = readSearchParam(query, "search") ?? "";
   const page = Number(readSearchParam(query, "page") ?? 1) || 1;
-  const usersPage = await apiRequest<Page<PlatformUser>>(
-    buildQueryHref("/platform/users", { search, page, pageSize: PAGE_SIZE }),
-  );
+  const [usersPage, organizationsPage] = await Promise.all([
+    apiRequest<Page<PlatformUser>>(buildQueryHref("/platform/users", { search, page, pageSize: PAGE_SIZE })),
+    apiRequest<Page<Organization>>(buildQueryHref("/platform/organizations", { status: "active", pageSize: 100 })),
+  ]);
   const currentPath = buildQueryHref("/platform/users", { search, page });
 
   return (
     <PageContainer>
-      <PageHeader title="Usuários" description="Todas as contas cadastradas na plataforma." />
+      <PageHeader
+        title="Usuários"
+        description="Todas as contas cadastradas na plataforma."
+        actions={<NewUserDialog organizations={organizationsPage.items} />}
+      />
       <FlashNotices flash={readFlash(query)} />
       <Card className="overflow-visible">
         <CardContent className="grid gap-4">
