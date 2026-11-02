@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { apiRequest, attempt } from "@/lib/api/api-client";
 import type { OrganizationEvent } from "@/lib/api/types";
+import { eventRoutes } from "@/lib/event-routes";
 import { withFlash } from "@/lib/flash";
 import { readText } from "@/lib/form-data";
 import { createEventSchema, updateEventSchema } from "@/lib/validation/form-schemas";
@@ -56,12 +57,12 @@ export async function createEvent(_previousState: CreateEventState, formData: Fo
   if (!result.ok) {
     return { error: result.message };
   }
-  redirect(withFlash(`/events/${result.value.id}`, { notice: "Evento criado." }));
+  redirect(withFlash(eventRoutes.overview(result.value.id), { notice: "Evento criado." }));
 }
 
 export async function updateEvent(formData: FormData) {
   const organization = await requireOrganization();
-  const eventPath = `/events/${encodeURIComponent(readText(formData, "eventId"))}`;
+  const eventPath = eventRoutes.settings(readText(formData, "eventId"));
   const form = parseFormData(updateEventSchema, formData);
   if (!form.ok) {
     redirect(withFlash(eventPath, { error: form.message }));

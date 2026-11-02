@@ -4,6 +4,10 @@ export type OrganizationRole = "admin" | "member";
 export type OrganizationStatus = "active" | "suspended";
 export type UserStatus = "active" | "blocked";
 export type EventStatus = "draft" | "active" | "archived";
+
+export type EventKind = "bingo" | "tickets" | "raffle";
+
+export type TemplateKind = "bingo" | "ticket";
 export type JobStatus = "queued" | "processing" | "done" | "failed";
 export type TicketStatus = "active" | "void";
 export type PaymentMethod = "pix" | "cash" | "card";
@@ -121,6 +125,7 @@ export interface InvitationPreview {
 export interface OrganizationEvent {
   id: string;
   name: string;
+  kind: EventKind;
   startsAt: string;
   location: string;
   description: string;
@@ -129,6 +134,7 @@ export interface OrganizationEvent {
   onlinePaymentsEnabled: boolean;
   requireBuyerIdentification: boolean;
   status: EventStatus;
+  canChangeKind: boolean;
   createdAt: string;
 }
 
@@ -144,6 +150,7 @@ export interface Asset {
 interface TemplateIdentity {
   id: string;
   name: string;
+  kind: TemplateKind;
   latestVersion: number;
   updatedAt: string;
 }
@@ -274,6 +281,22 @@ export interface DrawProgress {
   winners: TicketDrawProgress[];
   closest: TicketDrawProgress[];
   missingCountDistribution: Record<string, number>;
+}
+
+export interface RaffleWinner {
+  id: string;
+  position: number | null;
+  ticketId: string;
+  ticketCode: string;
+  buyerName: string | null;
+  buyerPhone: string | null;
+  drawnAt: string;
+  discardedAt: string | null;
+}
+
+export interface RaffleState {
+  eligibleCount: number;
+  winners: RaffleWinner[];
 }
 
 export interface DrawState {

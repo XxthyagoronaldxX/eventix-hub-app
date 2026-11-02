@@ -31,44 +31,45 @@ export async function loadEventOverviews(
   events: OrganizationEvent[],
 ): Promise<EventOverview[]> {
   const now = Date.now();
-  const canSeePayments = hasScope(organization, "org:tickets:payment");
-  const canSeeCheckIns = hasScope(organization, "org:tickets:check-in");
   const trackedEvents = events
     .filter((event) => event.status !== "archived")
     .sort(byUpcomingFirst(now))
     .slice(0, TRACKED_EVENT_LIMIT);
+  return Promise.all(trackedEvents.map((event) => loadEventOverview(organization, event, now)));
+}
 
-  return Promise.all(
-    trackedEvents.map(async (event) => {
-      const [payments, checkIns] = await Promise.all([
-        canSeePayments
-          ? attempt(() =>
-              apiRequest<PaymentSummary>(`/org/events/${event.id}/payments/summary`, {
-                organizationId: organization.id,
-              }),
-            )
-          : null,
-        canSeeCheckIns
-          ? attempt(() =>
-              apiRequest<CheckInSummary>(`/org/events/${event.id}/check-ins/summary`, {
-                organizationId: organization.id,
-              }),
-            )
-          : null,
-      ]);
-      const paymentSummary = payments?.ok ? payments.value : null;
-      const checkInSummary = checkIns?.ok ? checkIns.value : null;
-      return {
-        event,
-        ticketCount: paymentSummary?.activeTicketCount ?? checkInSummary?.activeTicketCount ?? 0,
-        paidCount: paymentSummary?.paidCount ?? null,
-        checkedInCount: checkInSummary?.checkedInCount ?? null,
-        revenueCents: paymentSummary ? paymentSummary.paidCount * event.ticketPriceCents : null,
-        isPast: Date.parse(event.startsAt) < now,
-        countdown: describeCountdown(event.startsAt, now),
-      };
-    }),
-  );
+export async function loadEventOverview(
+  organization: ActiveOrganization,
+  event: OrganizationEvent,
+  now = Date.now(),
+): Promise<EventOverview> {
+  const [payments, checkIns] = await Promise.all([
+    hasScope(organization, "org:tickets:payment")
+      ? attempt(() =>
+          apiRequest<PaymentSummary>(`/org/events/${event.id}/payments/summary`, {
+            organizationId: organization.id,
+          }),
+        )
+      : null,
+    hasScope(organization, "org:tickets:check-in")
+      ? attempt(() =>
+          apiRequest<CheckInSummary>(`/org/events/${event.id}/check-ins/summary`, {
+            organizationId: organization.id,
+          }),
+        )
+      : null,
+  ]);
+  const paymentSummary = payments?.ok ? payments.value : null;
+  const checkInSummary = checkIns?.ok ? checkIns.value : null;
+  return {
+    event,
+    ticketCount: paymentSummary?.activeTicketCount ?? checkInSummary?.activeTicketCount ?? 0,
+    paidCount: paymentSummary?.paidCount ?? null,
+    checkedInCount: checkInSummary?.checkedInCount ?? null,
+    revenueCents: paymentSummary ? paymentSummary.paidCount * event.ticketPriceCents : null,
+    isPast: Date.parse(event.startsAt) < now,
+    countdown: describeCountdown(event.startsAt, now),
+  };
 }
 
 export function describeCountdown(startsAt: string, now = Date.now()): string {

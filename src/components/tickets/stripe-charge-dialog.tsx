@@ -5,9 +5,21 @@ import { CircleCheck, Copy, CreditCard, ExternalLink, Loader2, QrCode, TimerOff 
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { useEffect, useState, useTransition } from "react";
-import { createStripeCheckout, type OnlinePaymentMethod, readStripeCheckoutStatus, type StripeCheckout } from "@/actions/stripe-actions";
+import {
+  createStripeCheckout,
+  type OnlinePaymentMethod,
+  readStripeCheckoutStatus,
+  type StripeCheckout,
+} from "@/actions/stripe-actions";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { BuyerFields } from "@/components/payments/buyer-fields";
 import { EMPTY_BUYER, isBuyerIdentified, type TicketBuyerInput, toBuyerPayload } from "@/lib/buyer";
 import { formatCurrencyFromCents } from "@/lib/format";
@@ -22,7 +34,10 @@ interface StripeChargeDialogProps {
 }
 
 type ChargeState =
-  { step: "choose" } | { step: "waiting"; checkout: StripeCheckout; qrCodeDataUrl: string } | { step: "paid"; checkout: StripeCheckout } | { step: "expired" };
+  | { step: "choose" }
+  | { step: "waiting"; checkout: StripeCheckout; qrCodeDataUrl: string }
+  | { step: "paid"; checkout: StripeCheckout }
+  | { step: "expired" };
 
 const STATUS_POLL_INTERVAL_MS = 3000;
 const METHOD_LABELS: Record<OnlinePaymentMethod, string> = { pix: "Pix", card: "Cartão" };
@@ -50,7 +65,9 @@ export function StripeChargeDialog({
       const result = await readStripeCheckoutStatus(ticketId, waitingSessionId);
       if (!result.ok) return;
       if (result.value.ticketPaid) {
-        setChargeState((current) => (current.step === "waiting" ? { step: "paid", checkout: current.checkout } : current));
+        setChargeState((current) =>
+          current.step === "waiting" ? { step: "paid", checkout: current.checkout } : current,
+        );
         toast.success(`Pagamento do ticket ${ticketCode} confirmado.`, { id: `stripe-paid-${ticketId}` });
         router.refresh();
         onPaid?.();
@@ -97,18 +114,37 @@ export function StripeChargeDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Cobrar ticket {ticketCode}</DialogTitle>
-          <DialogDescription>A pessoa paga no celular pelo QR Code. O ticket é marcado como pago automaticamente.</DialogDescription>
+          <DialogDescription>
+            A pessoa paga no celular pelo QR Code. O ticket é marcado como pago automaticamente.
+          </DialogDescription>
         </DialogHeader>
 
         {chargeState.step === "choose" && (
-          <BuyerFields idPrefix={`stripe-buyer-${ticketId}`} value={buyer} onChange={setBuyer} required={requireBuyerIdentification} />
+          <BuyerFields
+            idPrefix={`stripe-buyer-${ticketId}`}
+            value={buyer}
+            onChange={setBuyer}
+            required={requireBuyerIdentification}
+          />
         )}
 
         {chargeState.step === "choose" && (
           <div className="grid grid-cols-2 gap-3">
             {allowedMethods.map((method) => (
-              <Button key={method} variant="outline" className="h-20 flex-col gap-1.5" disabled={isPending || !canCharge} onClick={() => startCharge(method)}>
-                {isPending ? <Loader2 className="animate-spin" /> : method === "pix" ? <QrCode className="size-6" /> : <CreditCard className="size-6" />}
+              <Button
+                key={method}
+                variant="outline"
+                className="h-20 flex-col gap-1.5"
+                disabled={isPending || !canCharge}
+                onClick={() => startCharge(method)}
+              >
+                {isPending ? (
+                  <Loader2 className="animate-spin" />
+                ) : method === "pix" ? (
+                  <QrCode className="size-6" />
+                ) : (
+                  <CreditCard className="size-6" />
+                )}
                 {METHOD_LABELS[method]}
               </Button>
             ))}
@@ -119,10 +155,16 @@ export function StripeChargeDialog({
           <div className="grid justify-items-center gap-3 text-center">
             <p className="text-2xl font-semibold tabular-nums">
               {formatCurrencyFromCents(chargeState.checkout.amountCents)}
-              <span className="ml-2 text-sm font-normal text-muted-foreground">via {METHOD_LABELS[chargeState.checkout.method]}</span>
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                via {METHOD_LABELS[chargeState.checkout.method]}
+              </span>
             </p>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={chargeState.qrCodeDataUrl} alt="QR Code da cobrança" className="size-56 rounded-xl bg-white p-2" />
+            <img
+              src={chargeState.qrCodeDataUrl}
+              alt="QR Code da cobrança"
+              className="size-56 rounded-xl bg-white p-2"
+            />
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" /> Aguardando o pagamento…
             </p>
@@ -130,7 +172,11 @@ export function StripeChargeDialog({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => void navigator.clipboard.writeText(chargeState.checkout.url).then(() => toast.success("Link de pagamento copiado."))}
+                onClick={() =>
+                  void navigator.clipboard
+                    .writeText(chargeState.checkout.url)
+                    .then(() => toast.success("Link de pagamento copiado."))
+                }
               >
                 <Copy /> Copiar link
               </Button>
@@ -148,7 +194,8 @@ export function StripeChargeDialog({
             <CircleCheck className="size-14 text-success" />
             <p className="text-lg font-semibold">Pagamento confirmado!</p>
             <p className="text-sm text-muted-foreground">
-              {formatCurrencyFromCents(chargeState.checkout.amountCents)} via {METHOD_LABELS[chargeState.checkout.method]}. O ticket já pode entrar no evento.
+              {formatCurrencyFromCents(chargeState.checkout.amountCents)} via{" "}
+              {METHOD_LABELS[chargeState.checkout.method]}. O ticket já pode entrar no evento.
             </p>
           </div>
         )}

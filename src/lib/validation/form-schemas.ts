@@ -83,10 +83,13 @@ const eventFieldsSchema = z.object({
     ),
 });
 
-export const createEventSchema = eventFieldsSchema;
+export const createEventSchema = eventFieldsSchema.extend({
+  kind: z.enum(["bingo", "tickets", "raffle"], { error: "Escolha o tipo do evento." }),
+});
 
 export const updateEventSchema = eventFieldsSchema.extend({
   eventId: objectIdSchema,
+  kind: z.enum(["bingo", "tickets", "raffle"], { error: "Escolha o tipo do evento." }).optional(),
   status: z.enum(["draft", "active", "archived"], { error: "Escolha um status válido." }),
 });
 

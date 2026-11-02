@@ -2,10 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { apiRequest, attempt } from "@/lib/api/api-client";
-import type { Asset, TemplateDetail } from "@/lib/api/types";
+import type { Asset, TemplateDetail, TemplateKind } from "@/lib/api/types";
 import {
   DEFAULT_NUMBER_RULE,
   DEFAULT_TEMPLATE_LAYOUT,
+  DEFAULT_TICKET_TEMPLATE_LAYOUT,
   type NumberRuleConfig,
   type TemplateLayout,
 } from "@/lib/builder/template-layout";
@@ -18,6 +19,7 @@ import { firstIssueMessage, parseFormData, z } from "@/lib/validation/zod";
 import { requireOrganization } from "@/lib/workspace";
 
 export interface TemplateDesign {
+  kind: TemplateKind;
   imageAssetId: string;
   layout: TemplateLayout;
   numberRule: NumberRuleConfig;
@@ -28,6 +30,7 @@ export interface SaveTemplateState {
 }
 
 const TEMPLATES_PATH = "/templates";
+const templateKindSchema = z.enum(["bingo", "ticket"], { error: "Escolha o tipo do template." });
 
 function templateEditorPath(templateId: string): string {
   return `/templates/${templateId}/edit`;
@@ -56,9 +59,13 @@ export async function createTemplate(
   if (!templateName.success) {
     return { error: firstIssueMessage(templateName.error) };
   }
+  const kind = templateKindSchema.safeParse(readText(formData, "kind") || "bingo");
+  if (!kind.success) {
+    return { error: firstIssueMessage(kind.error) };
+  }
   const image = readFile(formData, "image");
   if (!image) {
-    return { error: "Escolha a imagem da cartela." };
+    return { error: "Escolha a imagem do template." };
   }
 
   const upload = await uploadTemplateImage(organization.id, image);
@@ -71,8 +78,9 @@ export async function createTemplate(
       organizationId: organization.id,
       body: {
         name: templateName.data,
+        kind: kind.data,
         imageAssetId: upload.value.id,
-        layout: DEFAULT_TEMPLATE_LAYOUT,
+        layout: kind.data === "bingo" ? DEFAULT_TEMPLATE_LAYOUT : DEFAULT_TICKET_TEMPLATE_LAYOUT,
         numberRule: DEFAULT_NUMBER_RULE,
       },
     }),
@@ -82,7 +90,10 @@ export async function createTemplate(
   }
   redirect(
     withFlash(templateEditorPath(creation.value.id), {
-      notice: "Imagem enviada. Agora posicione as matrizes de números.",
+      notice:
+        kind.data === "bingo"
+          ? "Imagem enviada. Agora posicione as matrizes de números."
+          : "Imagem enviada. Agora posicione o código e o QR Code.",
     }),
   );
 }

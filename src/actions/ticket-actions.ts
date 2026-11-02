@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { apiRequest, attempt } from "@/lib/api/api-client";
 import type { TicketBatch } from "@/lib/api/types";
+import { eventRoutes } from "@/lib/event-routes";
 import { withFlash } from "@/lib/flash";
 import { readText, safeInternalPath } from "@/lib/form-data";
 import { objectIdSchema } from "@/lib/validation/common-schemas";
@@ -21,7 +22,7 @@ const batchPaymentSchema = z.object({ batchId: objectIdSchema, method: paymentMe
 
 export async function changeTicketPayment(formData: FormData) {
   const organization = await requireOrganization();
-  const returnPath = safeInternalPath(readText(formData, "returnPath"), "/tickets");
+  const returnPath = safeInternalPath(readText(formData, "returnPath"), "/events");
   const form = parseFormData(ticketPaymentSchema, formData);
   if (!form.ok) {
     redirect(withFlash(returnPath, { error: form.message }));
@@ -48,7 +49,7 @@ export async function markBatchAsPaid(formData: FormData) {
   if (!form.ok) {
     redirect(withFlash("/events", { error: form.message }));
   }
-  const batchPath = `/batches/${form.data.batchId}`;
+  const batchPath = eventRoutes.batch(readText(formData, "eventId"), form.data.batchId);
   const result = await attempt(() =>
     apiRequest<{ updatedCount: number }>(`/org/batches/${form.data.batchId}/payment`, {
       method: "POST",
@@ -66,7 +67,7 @@ export async function markBatchAsPaid(formData: FormData) {
 
 export async function createTicketBatch(formData: FormData) {
   const organization = await requireOrganization();
-  const eventPath = `/events/${encodeURIComponent(readText(formData, "eventId"))}`;
+  const eventPath = eventRoutes.tickets(readText(formData, "eventId"));
   const form = parseFormData(createTicketBatchSchema, formData);
   if (!form.ok) {
     redirect(withFlash(eventPath, { error: form.message }));
@@ -81,12 +82,14 @@ export async function createTicketBatch(formData: FormData) {
   if (!result.ok) {
     redirect(withFlash(eventPath, { error: result.message }));
   }
-  redirect(withFlash(`/batches/${result.value.id}`, { notice: "Lote enviado para geração." }));
+  redirect(
+    withFlash(eventRoutes.batch(result.value.eventId, result.value.id), { notice: "Lote enviado para geração." }),
+  );
 }
 
 export async function requestExport(formData: FormData) {
   const organization = await requireOrganization();
-  const batchPath = `/batches/${encodeURIComponent(readText(formData, "batchId"))}`;
+  const batchPath = eventRoutes.batch(readText(formData, "eventId"), readText(formData, "batchId"));
   const form = parseFormData(requestExportSchema, formData);
   if (!form.ok) {
     redirect(withFlash(batchPath, { error: form.message }));
@@ -103,7 +106,7 @@ export async function requestExport(formData: FormData) {
 
 export async function voidTicket(formData: FormData) {
   const organization = await requireOrganization();
-  const returnPath = safeInternalPath(readText(formData, "returnPath"), "/tickets");
+  const returnPath = safeInternalPath(readText(formData, "returnPath"), "/events");
   const form = parseFormData(voidTicketSchema, formData);
   if (!form.ok) {
     redirect(withFlash(returnPath, { error: form.message }));
